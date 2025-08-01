@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { getAuthRedirectUrl } from '@/lib/config';
 
 interface AuthPageProps {
   onAuthSuccess: () => void;
@@ -77,7 +78,7 @@ export function AuthPage({ onAuthSuccess, onGuestAccess, defaultTab = 'signin', 
 
     setIsLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = getAuthRedirectUrl('/');
       
       const { error } = await supabase.auth.signUp({
         email,

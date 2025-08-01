@@ -40,12 +40,22 @@ A modern web application for running Apify actors with dynamic form generation a
    npm install
    ```
 
-3. Start the development server:
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` and set your production domain:
+   ```env
+   VITE_SITE_URL=https://your-production-domain.com
+   ```
+
+4. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open http://localhost:5173 in your browser
+5. Open http://localhost:5173 in your browser
 
 ### Production Build
 
@@ -101,6 +111,16 @@ All API calls are made securely with proper error handling and user feedback.
 - Guest mode API keys are stored locally and cleared on session end
 - All API requests use HTTPS
 - Input validation prevents malicious data injection
+
+## Email Verification
+
+The application uses Supabase Auth for email verification. To ensure email verification links work correctly in production:
+
+1. Set the `VITE_SITE_URL` environment variable to your production domain
+2. Configure your Supabase project's Site URL in the Supabase dashboard
+3. Email verification links will redirect users to your production domain instead of localhost
+
+**Important**: Without setting `VITE_SITE_URL`, email verification links will point to localhost and fail in production.
 
 ## Development
 
