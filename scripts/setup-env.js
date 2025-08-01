@@ -25,7 +25,7 @@ function question(prompt) {
 async function setupEnvironment() {
   console.log('This script will help you set up environment variables for production deployment.\n');
   
-  const productionUrl = await question('Enter your production URL (e.g., https://your-app.netlify.app): ');
+  const productionUrl = await question('Enter your production URL (e.g., https://apify-playground.vercel.app): ');
   
   if (!productionUrl) {
     console.log('❌ Production URL is required for email verification to work properly.');

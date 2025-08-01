@@ -62,11 +62,11 @@ Before deploying to production, you need to configure the email verification red
    ```bash
    npm run setup:env
    ```
-   This will prompt you for your production URL (e.g., `https://your-app.netlify.app`)
+   This will prompt you for your production URL (e.g., `https://apify-playground.vercel.app`)
 
-2. **For Netlify deployment**, add the environment variable in your Netlify dashboard:
-   - Go to Site settings > Environment variables
-   - Add `VITE_PRODUCTION_URL` with your production URL
+2. **For Vercel deployment**, add the environment variable in your Vercel dashboard:
+   - Go to Project settings > Environment variables
+   - Add `VITE_PRODUCTION_URL` with your production URL (e.g., `https://apify-playground.vercel.app`)
 
 3. **For other platforms**, set the `VITE_PRODUCTION_URL` environment variable to your production URL
 
@@ -139,7 +139,15 @@ All API calls are made securely with proper error handling and user feedback.
 
 MIT License - see LICENSE file for details
 
-#### Netlify
+## 🚀 Deployment
+
+### Vercel (Recommended)
+```bash
+npm run build
+vercel --prod
+```
+
+### Netlify
 ```bash
 npm run build
 netlify deploy --prod --dir=dist
