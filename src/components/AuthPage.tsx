@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Key, Eye, EyeOff, AlertCircle, CheckCircle, Sparkles, ArrowRight, Mail, Lock, User, Zap } from 'lucide-react';
 import { AnimatedSection, FadeUpSection, ScaleSection } from '@/components/AnimatedSection';
 import { usePageLoadAnimation } from '@/hooks/useScrollAnimation';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getEmailRedirectUrl } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -77,7 +77,7 @@ export function AuthPage({ onAuthSuccess, onGuestAccess, defaultTab = 'signin', 
 
     setIsLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = getEmailRedirectUrl();
       
       const { error } = await supabase.auth.signUp({
         email,

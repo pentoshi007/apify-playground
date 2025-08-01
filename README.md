@@ -54,6 +54,24 @@ npm run build
 npm run preview
 ```
 
+### Production Deployment Setup
+
+Before deploying to production, you need to configure the email verification redirect URL:
+
+1. **Set up environment variables**:
+   ```bash
+   npm run setup:env
+   ```
+   This will prompt you for your production URL (e.g., `https://your-app.netlify.app`)
+
+2. **For Netlify deployment**, add the environment variable in your Netlify dashboard:
+   - Go to Site settings > Environment variables
+   - Add `VITE_PRODUCTION_URL` with your production URL
+
+3. **For other platforms**, set the `VITE_PRODUCTION_URL` environment variable to your production URL
+
+**Important**: This ensures email verification links work correctly in production instead of redirecting to localhost.
+
 ## Usage
 
 1. **Get Your API Key**: Visit [Apify Console](https://console.apify.com/account/integrations) to get your API token
@@ -110,7 +128,7 @@ All API calls are made securely with proper error handling and user feedback.
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript compiler
+- `npm run setup:env` - Set up environment variables for production
 
 ### Code Style
 
