@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "functions": {
     "api/apify/[...path].js": {
       "maxDuration": 30
