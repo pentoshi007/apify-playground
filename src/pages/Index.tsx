@@ -223,7 +223,7 @@ const Index = () => {
       
       if (completedRun.status === 'SUCCEEDED' && completedRun.defaultDatasetId) {
         try {
-          const results = await apifyService.getRunResults(completedRun.defaultDatasetId, completedRun.stats.itemsCount);
+          const results = await apifyService.getRunResults(completedRun.defaultDatasetId);
           data = {
             ...data,
             datasetId: completedRun.defaultDatasetId,

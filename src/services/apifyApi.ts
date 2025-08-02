@@ -64,7 +64,7 @@ interface ApifyActorDetails {
 }
 
 export class ApifyApiService {
-  private baseUrl = import.meta.env.DEV ? '/api/apify' : 'https://api.apify.com/v2';
+  private baseUrl = '/api/apify';
   private apiKey: string;
 
   constructor(apiKey: string) {
@@ -72,23 +72,23 @@ export class ApifyApiService {
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
       throw new Error('Invalid API key provided');
     }
-    
+
     // Warn if not using HTTPS in production
     if (!import.meta.env.DEV && window.location.protocol !== 'https:') {
       console.warn('⚠️ API key should only be used over HTTPS in production');
     }
-    
+
     this.apiKey = apiKey.trim();
   }
 
-  private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async makeRequest<T>(endpoint: string, options: RequestInit = {}, retries = 3): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     // Log only in development mode for security
     if (import.meta.env.DEV) {
-
+      console.log(`🔄 API Request: ${options.method || 'GET'} ${url}`);
     }
-    
+
     const headers = {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
@@ -96,43 +96,64 @@ export class ApifyApiService {
       ...options.headers,
     };
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers,
+        });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `API request failed with status ${response.status}`;
-      
-      // Handle specific HTTP status codes
-      switch (response.status) {
-        case 401:
-          errorMessage = 'Invalid API key or authentication failed';
-          break;
-        case 403:
-          errorMessage = 'Access forbidden - check your API key permissions';
-          break;
-        case 429:
-          errorMessage = 'Rate limit exceeded - please try again later';
-          break;
-        case 500:
-          errorMessage = 'Apify server error - please try again later';
-          break;
-        default:
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error?.message || errorMessage;
-          } catch {
-            // If JSON parsing fails, use the text as error message
-            errorMessage = errorText || errorMessage;
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `API request failed with status ${response.status}`;
+
+          // Handle specific HTTP status codes
+          switch (response.status) {
+            case 401:
+              errorMessage = 'Invalid API key or authentication failed';
+              break;
+            case 403:
+              errorMessage = 'Access forbidden - check your API key permissions';
+              break;
+            case 429:
+              errorMessage = 'Rate limit exceeded - please try again later';
+              break;
+            case 500:
+              errorMessage = 'Apify server error - please try again later';
+              break;
+            default:
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error?.message || errorMessage;
+              } catch {
+                // If JSON parsing fails, use the text as error message
+                errorMessage = errorText || errorMessage;
+              }
           }
-      }
 
-      throw new Error(errorMessage);
+          // Retry on server errors or rate limits
+          if ((response.status >= 500 || response.status === 429) && attempt < retries) {
+            console.warn(`⚠️ Request failed (attempt ${attempt}/${retries}), retrying in ${attempt * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+            continue;
+          }
+
+          throw new Error(errorMessage);
+        }
+
+        return response.json();
+      } catch (error) {
+        if (attempt === retries) {
+          throw error;
+        }
+
+        // Retry on network errors
+        console.warn(`⚠️ Network error (attempt ${attempt}/${retries}), retrying in ${attempt * 1000}ms...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
     }
 
-    return response.json();
+    throw new Error('Max retries exceeded');
   }
 
   /**
@@ -177,10 +198,10 @@ export class ApifyApiService {
       // Get the full actor object which should include the input schema
       const response = await this.makeRequest<{ data: ApifyActorDetails }>(`/acts/${actorId}`);
       const actor = response.data;
-      
+
       // Debug logging - show actor schema
 
-      
+
       // Extract input schema from the actor object
       if (actor.inputSchema) {
         return actor.inputSchema;
@@ -188,7 +209,7 @@ export class ApifyApiService {
         // If no explicit input schema, try to infer from default input
         const defaultInput = actor.defaultRunOptions.input;
         const properties: Record<string, ApifyActorInput> = {};
-        
+
         // Create a basic schema from the default input structure
         Object.keys(defaultInput).forEach(key => {
           const value = defaultInput[key];
@@ -198,7 +219,7 @@ export class ApifyApiService {
             default: typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : undefined
           };
         });
-        
+
         return {
           properties,
           required: []
@@ -238,11 +259,11 @@ export class ApifyApiService {
       if (import.meta.env.DEV) {
 
       }
-      
+
       // First, try to get available builds to find a suitable build tag
       const builds = await this.getActorBuilds(actorId);
       let buildTag = 'latest'; // Default to latest
-      
+
       if (builds.length > 0) {
         // Find the most recent successful build
         const successfulBuild = builds.find(build => build.status === 'SUCCEEDED');
@@ -254,10 +275,10 @@ export class ApifyApiService {
           console.warn(`⚠️ No successful builds found for actor ${actorId}, trying with latest`);
         }
       }
-      
+
       // Prepare the input payload - Apify API expects the input data directly as the POST body
 
-      
+
       // Try to run with the determined build tag
       const response = await this.makeRequest<{ data: ApifyRunResult }>(`/acts/${actorId}/runs?build=${buildTag}`, {
         method: 'POST',
@@ -266,13 +287,13 @@ export class ApifyApiService {
       return response.data;
     } catch (error) {
       console.error(`Failed to run actor ${actorId}:`, error);
-      
+
       // If the error is about build not found, provide a more helpful error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('Build with tag') && errorMessage.includes('was not found')) {
         throw new Error(`Actor cannot be run because no suitable build is available. The actor may need to be built first. Original error: ${errorMessage}`);
       }
-      
+
       throw new Error(`Failed to run actor: ${errorMessage}`);
     }
   }
@@ -282,16 +303,16 @@ export class ApifyApiService {
    */
   async waitForRun(actorId: string, runId: string, maxWaitTime = 300000): Promise<ApifyRunResult> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < maxWaitTime) {
       try {
         const response = await this.makeRequest<{ data: ApifyRunResult }>(`/acts/${actorId}/runs/${runId}`);
         const run = response.data;
-        
+
         if (run.status === 'SUCCEEDED' || run.status === 'FAILED' || run.status === 'ABORTED' || run.status === 'TIMED-OUT') {
           return run;
         }
-        
+
         // Wait 2 seconds before checking again
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
@@ -299,45 +320,77 @@ export class ApifyApiService {
         throw error;
       }
     }
-    
+
     throw new Error('Run timed out');
   }
 
   /**
-   * Get the dataset items from a completed run, with polling to fix race conditions.
+   * Get the dataset items from a completed run
    */
-  async getRunResults(datasetId: string, expectedItemCount: number): Promise<unknown[]> {
-    if (expectedItemCount === 0) {
-      return [];
-    }
+  async getRunResults(datasetId: string): Promise<unknown[]> {
+    try {
+      // First, check if dataset exists and has items
+      const datasetInfo = await this.makeRequest<any>(`/datasets/${datasetId}`);
+      const itemCount = datasetInfo?.data?.itemCount ?? datasetInfo?.itemCount ?? 0;
 
-    const MAX_RETRIES = 5;
-    const RETRY_DELAY_MS = 2000;
+      if (import.meta.env.DEV) {
+        console.log(`📊 Dataset ${datasetId} has ${itemCount} items`);
+      }
 
-    for (let i = 0; i < MAX_RETRIES; i++) {
-      try {
-        const response = await this.makeRequest<any[]>(`/datasets/${datasetId}/items?format=json&clean=true`);
-        
-        // Check if we have received the expected number of items
-        if (response && response.length >= expectedItemCount) {
-          return response; // Success!
-        }
+      if (itemCount === 0) {
+        // Wait a bit and check again - sometimes there's a delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const retryDatasetInfo = await this.makeRequest<any>(`/datasets/${datasetId}`);
+        const retryItemCount = retryDatasetInfo?.data?.itemCount ?? retryDatasetInfo?.itemCount ?? 0;
 
-        // If not, wait and retry
-        if (i < MAX_RETRIES - 1) {
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-        }
-      } catch (error) {
-        console.error(`Attempt ${i + 1} failed to fetch results for dataset ${datasetId}:`, error);
-        if (i >= MAX_RETRIES - 1) {
-          // If all retries fail, throw the last error
-          throw new Error(`Failed to fetch complete dataset results after ${MAX_RETRIES} attempts.`);
+        if (retryItemCount === 0) {
+          return [];
         }
       }
-    }
 
-    // Fallback in case loop finishes unexpectedly
-    return [];
+      // Try multiple endpoints to get the data
+      const endpoints = [
+        `/datasets/${datasetId}/items?format=json&clean=true`,
+        `/datasets/${datasetId}/items?format=json`,
+        `/datasets/${datasetId}/items`,
+        `/datasets/${datasetId}/download?format=json`
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const response = await this.makeRequest<any>(endpoint);
+
+          let items: unknown[] = [];
+          if (response?.data?.items) {
+            items = response.data.items;
+          } else if (response?.items) {
+            items = response.items;
+          } else if (Array.isArray(response)) {
+            items = response;
+          } else if (response) {
+            items = [response];
+          }
+
+          if (items.length > 0) {
+            if (import.meta.env.DEV) {
+              console.log(`✅ Successfully fetched ${items.length} items from ${endpoint}`);
+            }
+            return items;
+          }
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn(`⚠️ Failed to fetch from ${endpoint}:`, error);
+          }
+          continue;
+        }
+      }
+
+      return [];
+
+    } catch (error) {
+      console.error(`❌ Failed to fetch results for dataset ${datasetId}:`, error);
+      return [];
+    }
   }
 }
 
