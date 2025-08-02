@@ -69,7 +69,7 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-2 text-primary/80">
               <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-medium">Production Ready Platform</span>
+              <span className="text-sm font-medium">Actor Management Made Easy</span>
             </div>
           </div>
 
