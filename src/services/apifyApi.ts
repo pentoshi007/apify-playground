@@ -304,61 +304,40 @@ export class ApifyApiService {
   }
 
   /**
-   * Get the dataset items from a completed run
+   * Get the dataset items from a completed run, with polling to fix race conditions.
    */
-  async getRunResults(datasetId: string): Promise<unknown[]> {
-    try {
-      const datasetInfo = await this.makeRequest<any>(`/datasets/${datasetId}`);
-      const itemCount = datasetInfo?.data?.itemCount ?? datasetInfo?.itemCount ?? 0;
-      
-      if (itemCount === 0) {
-        return [];
-      }
-      
-      const response = await this.makeRequest<any>(`/datasets/${datasetId}/items?format=json&clean=true`);
-      
-      let items: unknown[] = [];
-      if (response?.data?.items) {
-        items = response.data.items;
-      } else if (response?.items) {
-        items = response.items;
-      } else if (Array.isArray(response)) {
-        items = response;
-      } else if (response) {
-        items = [response];
-      }
-      
-      return items;
-      
-    } catch (error) {
-      console.error(`❌ Failed to fetch results for dataset ${datasetId}:`, error);
-      
-      const fallbackEndpoints = [
-        `/datasets/${datasetId}/items`,
-        `/datasets/${datasetId}/items?format=json`,
-        `/datasets/${datasetId}/download?format=json`
-      ];
-      
-      for (const endpoint of fallbackEndpoints) {
-        try {
-          const fallbackResponse = await this.makeRequest<any>(endpoint);
-          
-          if (fallbackResponse?.data?.items) {
-            return fallbackResponse.data.items;
-          } else if (fallbackResponse?.items) {
-            return fallbackResponse.items;
-          } else if (Array.isArray(fallbackResponse)) {
-            return fallbackResponse;
-          } else if (fallbackResponse) {
-            return [fallbackResponse];
-          }
-        } catch {
-          continue;
-        }
-      }
-      
+  async getRunResults(datasetId: string, expectedItemCount: number): Promise<unknown[]> {
+    if (expectedItemCount === 0) {
       return [];
     }
+
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY_MS = 2000;
+
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        const response = await this.makeRequest<any[]>(`/datasets/${datasetId}/items?format=json&clean=true`);
+        
+        // Check if we have received the expected number of items
+        if (response && response.length >= expectedItemCount) {
+          return response; // Success!
+        }
+
+        // If not, wait and retry
+        if (i < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        }
+      } catch (error) {
+        console.error(`Attempt ${i + 1} failed to fetch results for dataset ${datasetId}:`, error);
+        if (i >= MAX_RETRIES - 1) {
+          // If all retries fail, throw the last error
+          throw new Error(`Failed to fetch complete dataset results after ${MAX_RETRIES} attempts.`);
+        }
+      }
+    }
+
+    // Fallback in case loop finishes unexpectedly
+    return [];
   }
 }
 
