@@ -93,8 +93,6 @@ export class ApifyApiService {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
       'User-Agent': 'Apify-Actor-Playground/1.0',
-      // Security headers
-      'X-Requested-With': 'XMLHttpRequest',
       ...options.headers,
     };
 
