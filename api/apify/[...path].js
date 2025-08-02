@@ -16,7 +16,25 @@ export default async function handler(req, res) {
         return;
     }
 
+    // Health check endpoint
+    if (req.query.path && req.query.path[0] === 'health') {
+        res.status(200).json({
+            status: 'ok',
+            message: 'Apify proxy is working',
+            timestamp: new Date().toISOString()
+        });
+        return;
+    }
+
     try {
+        // Log the incoming request for debugging
+        console.log('Incoming request:', {
+            method: req.method,
+            query: req.query,
+            headers: Object.keys(req.headers),
+            hasAuth: !!req.headers.authorization
+        });
+
         // Extract the path from the dynamic route
         const { path, ...queryParams } = req.query;
         const apiPath = Array.isArray(path) ? path.join('/') : path || '';
@@ -36,16 +54,37 @@ export default async function handler(req, res) {
 
         console.log(`🔄 Proxying ${req.method} ${targetUrl}`);
 
+        // Prepare headers
+        const headers = {
+            'User-Agent': 'Apify-Actor-Playground/1.0',
+        };
+
+        // Add authorization header if present
+        if (req.headers.authorization) {
+            headers['Authorization'] = req.headers.authorization;
+        }
+
+        // Add content-type for POST requests
+        if (req.method !== 'GET' && req.body) {
+            headers['Content-Type'] = 'application/json';
+        }
+
         // Forward the request to Apify API
         const response = await fetch(targetUrl, {
             method: req.method,
-            headers: {
-                'Authorization': req.headers.authorization,
-                'Content-Type': 'application/json',
-                'User-Agent': 'Apify-Actor-Playground/1.0',
-            },
+            headers,
             body: req.method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined,
         });
+
+        // Check if response is ok
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API Error ${response.status}:`, errorText);
+            return res.status(response.status).json({
+                error: `API request failed with status ${response.status}`,
+                message: errorText
+            });
+        }
 
         // Get response data
         const data = await response.json();

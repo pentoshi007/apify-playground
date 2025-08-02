@@ -64,7 +64,7 @@ interface ApifyActorDetails {
 }
 
 export class ApifyApiService {
-  private baseUrl = '/api/apify';
+  private baseUrl = import.meta.env.DEV ? '/api/apify' : 'https://api.apify.com/v2';
   private apiKey: string;
 
   constructor(apiKey: string) {
