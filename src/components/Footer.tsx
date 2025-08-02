@@ -120,7 +120,7 @@ export function Footer() {
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
           <div className="flex justify-center items-center">
             <p className="text-muted-foreground text-sm font-medium text-center">
-              © 2025 Apify Playground. All rights reserved.
+              © 2025 Apify Actor Playground - Run and manage your Apify actors with ease.
             </p>
           </div>
         </div>
